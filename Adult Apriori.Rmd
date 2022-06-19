@@ -1,0 +1,98 @@
+---
+title: "Adult dataset Apriori association rules mining"
+output: html_notebook
+---
+### About Dataset
+This data was extracted from the 1994 Census bureau database by Ronny Kohavi and Barry Becker (Data Mining and Visualization, Silicon Graphics). Main prediction task is to determine whether a person makes over $50K a year. However I decided to determine martial status based on dataset also.
+
+### Loading necessary libraries and dataset
+Libraries
+```{r}
+library(arulesViz)
+library(arules)
+library(readr)
+library(plyr)
+```
+Dataset
+```{r}
+df <- read_delim("adult_clean.csv", delim = ";", escape_double = FALSE, trim_ws = TRUE, show_col_types = FALSE)
+```
+
+### Displaying and preparing data
+Displaying what data looks like
+```{r}
+head(df)
+```
+Checking whether there are empty cells which may have negative impact on quality of analysis or cause errors
+```{r}
+sum(is.na(df))
+```
+Summarising data, letting us understand data types and ranges of each column
+```{r}
+summary(df)
+```
+Removing unnecessary columns for our research and creating variables containing numerical data which should be discretised in order to be correct for analysis purposes and possible to use in rule building.
+```{r}
+age <- df$age
+df$fnlwgt <- NULL
+capital.gain <- df$capital.gain
+capital.loss <- df$capital.loss
+hours.per.week <- df$hours.per.week
+df$education.num <- NULL
+df$relationship <- NULL
+df$occupation <- NULL
+```
+Discretising dataframe by replacing capital gain/loss, age and hours per week with ranges to which it belongs.
+Also copying those changes to previousely created variables.
+```{r}
+age <- df[,1] <- discretize(age,method = "frequency", breaks=10)
+capital.gain <- df$capital.gain <- discretize(capital.gain,  "interval", breaks=2)
+capital.loss <- df$capital.loss <- discretize(capital.loss,  "interval", breaks=3)
+hours.per.week <- df$hours.per.week <- discretize(hours.per.week, "frequency", breaks=2)
+```
+Displaying dataset again to see what changes were done
+```{r}
+head(df)
+```
+### Rules mining
+Passing parameters of support, confidence accordingly selected for each case and minimal set size = 2 to algorithm in order to avoid rules for every single possible case.
+Predefining right hand side to get only necessary results.
+
+In first case we are looking for rules leading person to have income 50000 $/year or less.
+```{r}
+rules_poor <- apriori(df, parameter = list (support = 0.01,confidence = 0.6, minlen = 2),appearance=list(rhs=c("income=<=50K"),default="lhs"))
+inspect(rules_poor[1:10])
+```
+Visualising data in a more clear way using parallel coordinates plot.
+```{r}
+plot(rules_poor[1:10], method = "paracoord")
+```
+By changing parameters we can get rules for people earning more than 50000 $ per year instead.
+In this case we have even more detailed information on three level of rules which lets us get more information from research.
+```{r}
+rules_rich <- apriori(df, parameter = list (support = 0.05,confidence = 0.5, minlen = 2),appearance=list(rhs=c("income=>50K" ),default="lhs"))
+inspect(rules_rich[1:10])
+
+plot(rules_rich[1:10], method= "paracoord")
+```
+Applying similar set of commands we can easily get other information: for example we can check what might impact marital status of person.
+
+Checking why somebody was never married.
+```{r}
+rules_single <- apriori(df, parameter = list (support = 0.05,confidence = 0.5, minlen = 2),appearance=list(rhs=c("marital.status=Never-married"),default="lhs"))
+inspect(rules_single[1:15])
+
+plot(rules_single[1:10], method= "paracoord")
+```
+And what might be the reason for marriage.
+```{r}
+rules_married <- apriori(df, parameter = list (support = 0.05,confidence = 0.5, minlen = 2),appearance=list(rhs=c("marital.status=Married-civ-spouse","marital.status=Married-spouse-absent","marital.status=Married-AF-spouse"),default="lhs"))
+inspect(rules_married[1:15])
+
+plot(rules_married[1:10], method= "paracoord")
+```
+### Conclusion
+Apriori algorithm is a powerful tool to find association rules which let us gain an understanding of what is the reason for something.
+
+
+
